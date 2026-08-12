@@ -1,0 +1,12 @@
+{
+  "$schema": "https://json.schemastore.org/tsconfig",
+  "name": "chainlink-nft-cre-workflow",
+  "version": "1.0.0",
+  "target": "ethereum-testnet-sepolia",
+  "contracts": {
+    "ChainLinkNFT": "0xBAA134b625B181cA6A924A2aa569c87bde86Cc1D"
+  },
+  "chainSelectors": {
+    "ethereum-testnet-sepolia": "16015286601757825753"
+  }
+}

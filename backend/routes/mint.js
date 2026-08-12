@@ -51,6 +51,7 @@ router.post('/verify-mint', async (req, res) => {
         market: existingNft.market,
         price: String(existingNft.eth_usd_price),
         contractAddress: existingNft.contract_address,
+        nft: existingNft,
       });
     }
 
@@ -166,6 +167,19 @@ router.post('/verify-mint', async (req, res) => {
       price: ethUsdPrice.toString(),
       blockNumber: receipt.blockNumber,
       contractAddress: receipt.to,
+      nft: nft || {
+        token_id: Number(tokenId),
+        owner_address: to,
+        owner_wallet: to,
+        market,
+        price_at_mint: ethUsdPrice,
+        eth_usd_price: ethUsdPrice,
+        mint_tx_hash: txHash,
+        transaction_hash: txHash,
+        contract_address: receipt.to,
+        image_cid: imageCid,
+        metadata_cid: metadataCid,
+      },
     });
   } catch (err) {
     console.error('Mint verification failed:', err);

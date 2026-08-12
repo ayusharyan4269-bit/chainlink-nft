@@ -1,0 +1,20 @@
+{
+  "name": "cre-workflow",
+  "version": "1.0.0",
+  "description": "Chainlink Runtime Environment Workflow for ChainLinkNFT Market State Updates",
+  "main": "src/index.ts",
+  "scripts": {
+    "build": "cre-compile src/index.ts --out dist/workflow.wasm",
+    "compile": "cre-compile src/index.ts",
+    "simulate": "cre workflow simulate src/index.ts"
+  },
+  "dependencies": {
+    "@chainlink/cre-sdk": "^1.18.0",
+    "viem": "^2.34.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.0",
+    "tsx": "^4.23.12",
+    "typescript": "^5.3.3"
+  }
+}

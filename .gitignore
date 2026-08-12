@@ -6,12 +6,17 @@ out/
 node_modules/
 backend/node_modules/
 frontend/node_modules/
+cre-workflow/node_modules/
+cre-workflow/dist/
 
-# Broadcast logs
+# Broadcast logs & scratch
 broadcast/
+scratch/
 
 # Docs
 docs/
 
-# Dotenv file
+# Environment files
 .env
+*.env
+**/.env
