@@ -544,6 +544,441 @@ html, body {
 }
 
 /* ==========================================================================
+   3b. FEATURE 1 — LIVE MARKET REGIME VISUALIZATION
+   ========================================================================== */
+.regime-visualizer-card {
+  width: 100%;
+  margin: -24px auto 36px auto;
+  padding: 28px 32px;
+  border: 1px solid rgba(139, 92, 246, 0.25);
+  background: linear-gradient(135deg, rgba(99, 102, 241, 0.08), rgba(15, 23, 42, 0.92));
+}
+
+.regime-head-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 20px;
+  margin-bottom: 24px;
+  flex-wrap: wrap;
+}
+
+.regime-title-box {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.regime-tag {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--accent-purple);
+}
+
+.regime-oracle-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-top: 6px;
+}
+
+.regime-price-display {
+  text-align: right;
+}
+
+.regime-price-label {
+  display: block;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin-bottom: 4px;
+}
+
+.regime-price-value {
+  font-size: 32px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: var(--text-primary);
+  line-height: 1.1;
+}
+
+.regime-market-label {
+  display: block;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin-top: 12px;
+  margin-bottom: 6px;
+}
+
+.regime-market-value {
+  font-size: 18px;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+}
+
+.regime-market-value.bearish { color: var(--bearish-red); }
+.regime-market-value.neutral { color: var(--neutral-amber); }
+.regime-market-value.bullish { color: var(--bullish-green); }
+
+.regime-price-badge {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+}
+
+.regime-updated {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-top: 4px;
+}
+
+.regime-track-wrapper {
+  margin-top: 8px;
+}
+
+.regime-track-bar {
+  position: relative;
+  display: flex;
+  height: 44px;
+  border-radius: 12px;
+  overflow: visible;
+  border: 1px solid var(--border-glass);
+}
+
+.track-segment {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  padding: 0 8px;
+}
+
+.track-segment.seg-bearish {
+  background: linear-gradient(90deg, rgba(239, 68, 68, 0.25), rgba(239, 68, 68, 0.08));
+  color: #fca5a5;
+  border-right: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.track-segment.seg-neutral {
+  background: linear-gradient(90deg, rgba(245, 158, 11, 0.2), rgba(245, 158, 11, 0.08));
+  color: #fcd34d;
+  border-right: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.track-segment.seg-bullish {
+  background: linear-gradient(90deg, rgba(16, 185, 129, 0.08), rgba(16, 185, 129, 0.25));
+  color: #6ee7b7;
+}
+
+.regime-marker-pin {
+  position: absolute;
+  top: -28px;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  z-index: 2;
+  pointer-events: none;
+  transition: left 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.marker-pin-head {
+  background: var(--text-primary);
+  color: var(--bg-dark);
+  font-size: 12px;
+  font-weight: 800;
+  padding: 4px 10px;
+  border-radius: 8px;
+  white-space: nowrap;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+}
+
+.marker-pin-line {
+  width: 2px;
+  height: 36px;
+  background: var(--text-primary);
+  box-shadow: 0 0 8px rgba(255, 255, 255, 0.5);
+}
+
+.regime-scale-ticks {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 10px;
+  font-size: 11px;
+  color: var(--text-muted);
+  font-weight: 600;
+  font-family: var(--font-code);
+}
+
+.regime-scale-ticks .tick-val {
+  color: var(--text-secondary);
+  font-weight: 700;
+}
+
+@media (max-width: 768px) {
+  .regime-visualizer-card {
+    padding: 20px;
+  }
+
+  .regime-price-display {
+    text-align: left;
+    width: 100%;
+  }
+
+  .regime-price-badge {
+    align-items: flex-start;
+  }
+
+  .regime-price-value {
+    font-size: 26px;
+  }
+
+  .track-segment span {
+    font-size: 9px;
+  }
+}
+
+@media (max-width: 390px) {
+  .track-segment span {
+    display: none;
+  }
+}
+
+/* ==========================================================================
+   3c. FEATURE 3 — JUDGE DEMO PANEL (extends demo-oracle-panel)
+   ========================================================================== */
+.judge-demo-panel {
+  border-color: rgba(245, 158, 11, 0.45);
+  box-shadow: 0 0 24px rgba(245, 158, 11, 0.08);
+}
+
+.judge-demo-panel .demo-buttons-grid {
+  grid-template-columns: repeat(4, 1fr);
+}
+
+@media (max-width: 900px) {
+  .judge-demo-panel .demo-buttons-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 480px) {
+  .judge-demo-panel .demo-buttons-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.btn-demo-price.return-live {
+  background: rgba(16, 185, 129, 0.12);
+  border: 1px solid rgba(16, 185, 129, 0.35);
+  color: #6ee7b7;
+}
+
+.demo-flow-diagram {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 20px;
+  padding: 16px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px dashed rgba(245, 158, 11, 0.25);
+  border-radius: 12px;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.flow-step {
+  background: rgba(245, 158, 11, 0.12);
+  border: 1px solid rgba(245, 158, 11, 0.25);
+  color: #fcd34d;
+  padding: 6px 12px;
+  border-radius: 8px;
+  font-weight: 700;
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+.demo-how-it-works {
+  margin-top: 20px;
+  padding: 16px 20px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--border-glass);
+  border-radius: 12px;
+}
+
+.demo-how-it-works h4 {
+  font-size: 14px;
+  font-weight: 700;
+  color: #fcd34d;
+  margin-bottom: 10px;
+}
+
+.demo-how-it-works p {
+  font-size: 13px;
+  color: var(--text-secondary);
+  line-height: 1.6;
+  margin-bottom: 8px;
+}
+
+.demo-oracle-legend {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-top: 12px;
+}
+
+.demo-oracle-legend span {
+  font-size: 12px;
+  font-weight: 600;
+  padding: 4px 10px;
+  border-radius: 8px;
+}
+
+.legend-real {
+  background: rgba(16, 185, 129, 0.12);
+  border: 1px solid rgba(16, 185, 129, 0.3);
+  color: #6ee7b7;
+}
+
+.legend-demo {
+  background: rgba(245, 158, 11, 0.12);
+  border: 1px solid rgba(245, 158, 11, 0.3);
+  color: #fcd34d;
+}
+
+/* ==========================================================================
+   3d. FEATURE 4 — SYSTEM HEALTH PANEL
+   ========================================================================== */
+.system-health-panel {
+  width: 100%;
+  margin: 0 auto 36px auto;
+  padding: 24px 32px;
+  border: 1px solid rgba(16, 185, 129, 0.2);
+  background: linear-gradient(135deg, rgba(16, 185, 129, 0.05), rgba(15, 23, 42, 0.9));
+}
+
+.health-head-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+}
+
+.health-title-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.health-title-group h3 {
+  font-size: 16px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+}
+
+.health-all-good {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--bullish-green);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.health-all-good::before {
+  content: '';
+  width: 8px;
+  height: 8px;
+  background: var(--bullish-green);
+  border-radius: 50%;
+  animation: pulse-green 2s infinite;
+}
+
+.health-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 14px;
+}
+
+@media (max-width: 900px) {
+  .health-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 480px) {
+  .health-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.health-unit {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--border-glass);
+  border-radius: 12px;
+  transition: border-color 0.2s ease;
+}
+
+.health-unit:hover {
+  border-color: rgba(16, 185, 129, 0.25);
+}
+
+.h-dot {
+  font-size: 14px;
+  flex-shrink: 0;
+}
+
+.h-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.h-name {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.h-state {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.h-state.status-live { color: var(--bullish-green); }
+.h-state.status-warn { color: var(--neutral-amber); }
+.h-state.status-off { color: var(--bearish-red); }
+
+/* ==========================================================================
    4. MINT DYNAMIC NFT SECTION
    ========================================================================== */
 .mint-section {
