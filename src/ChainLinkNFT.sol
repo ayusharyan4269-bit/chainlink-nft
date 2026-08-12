@@ -1,0 +1,137 @@
+
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.24;
+
+import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
+import "@chainlink/contracts/src/v0.8/shared/interfaces/AggregatorV3Interface.sol";
+
+contract ChainLinkNFT is ERC721 {
+    AggregatorV3Interface public immutable priceFeed;
+
+    uint256 public nextTokenId;
+
+    enum Market {
+        Bearish,
+        Neutral,
+        Bullish
+    }
+
+    mapping(uint256 => Market) public tokenMarket;
+    mapping(uint256 => int256) public tokenMintPrice;
+
+    event NFTMinted(
+        address indexed to,
+        uint256 tokenId,
+        Market market,
+        int256 price
+    );
+
+    constructor(address _priceFeed) ERC721("ChainLinkNFT", "CLNFT") {
+        priceFeed = AggregatorV3Interface(_priceFeed);
+    }
+
+    function getLatestPrice() public view returns (int256) {
+        (, int256 price, , uint256 updatedAt, ) = priceFeed.latestRoundData();
+
+        require(price > 0, "Invalid price");
+        require(block.timestamp - updatedAt < 3 hours, "Stale price");
+
+        return price;
+    }
+
+    function _determineMarket(
+        int256 price
+    ) internal pure returns (Market) {
+        if (price < 2500 * 1e8) {
+            return Market.Bearish;
+        }
+
+        if (price <= 4000 * 1e8) {
+            return Market.Neutral;
+        }
+
+        return Market.Bullish;
+    }
+
+    function mint() external returns (uint256) {
+        int256 price = getLatestPrice();
+        Market market = _determineMarket(price);
+
+        uint256 tokenId = nextTokenId++;
+
+        _safeMint(msg.sender, tokenId);
+
+        tokenMarket[tokenId] = market;
+        tokenMintPrice[tokenId] = price;
+
+        emit NFTMinted(msg.sender, tokenId, market, price);
+
+        return tokenId;
+    }
+
+    function getTokenMarket(
+        uint256 tokenId
+    ) public view returns (string memory) {
+        _requireOwned(tokenId);
+
+        Market m = tokenMarket[tokenId];
+
+        if (m == Market.Bearish) {
+            return "Bearish";
+        }
+
+        if (m == Market.Neutral) {
+            return "Neutral";
+        }
+
+        return "Bullish";
+    }
+
+    function tokenURI(
+        uint256 tokenId
+    ) public view override returns (string memory) {
+        _requireOwned(tokenId);
+
+        string memory market = getTokenMarket(tokenId);
+
+        return string(
+            abi.encodePacked(
+                "data:application/json;utf8,",
+                '{"name":"ChainLinkNFT #',
+                _toString(tokenId),
+                '","description":"Market trait set by Chainlink ETH/USD price at mint.",',
+                '"attributes":[{"trait_type":"Market","value":"',
+                market,
+                '"}]}'
+            )
+        );
+    }
+
+    function _toString(
+        uint256 value
+    ) internal pure returns (string memory) {
+        if (value == 0) {
+            return "0";
+        }
+
+        uint256 temp = value;
+        uint256 digits;
+
+        while (temp != 0) {
+            digits++;
+            temp /= 10;
+        }
+
+        bytes memory buffer = new bytes(digits);
+
+        while (value != 0) {
+            digits -= 1;
+            buffer[digits] = bytes1(
+                uint8(48 + value % 10)
+            );
+            value /= 10;
+        }
+
+        return string(buffer);
+    }
+}

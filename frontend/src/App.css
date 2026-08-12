@@ -1,0 +1,686 @@
+:root {
+  --bg: #0a0b10;
+  --bg-alt: #0f1117;
+  --violet: #8b5cf6;
+  --blue: #3b82f6;
+  --cyan: #22d3ee;
+  --green: #10b981;
+  --red: #ef4444;
+  --amber: #f59e0b;
+  --text-primary: #f4f5f7;
+  --text-secondary: #9ca3af;
+  --border-glass: rgba(255, 255, 255, 0.08);
+  --bg-glass: rgba(255, 255, 255, 0.03);
+  --gradient-main: linear-gradient(135deg, var(--violet), var(--blue), var(--cyan));
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  background-image:
+    radial-gradient(circle at 15% 10%, rgba(139, 92, 246, 0.12), transparent 45%),
+    radial-gradient(circle at 85% 25%, rgba(34, 211, 238, 0.1), transparent 45%);
+  color: var(--text-primary);
+  font-family: 'Inter', -apple-system, sans-serif;
+}
+
+.page {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* NAVBAR */
+.navbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 18px 32px;
+  border-bottom: 1px solid var(--border-glass);
+  background: rgba(10, 11, 16, 0.7);
+  backdrop-filter: blur(12px);
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.navbar-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.logo-mark {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  background: var(--gradient-main);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  color: #0a0b10;
+  font-weight: 700;
+}
+
+.navbar-title {
+  font-family: 'Space Grotesk', sans-serif;
+  font-weight: 600;
+  font-size: 18px;
+  letter-spacing: -0.01em;
+}
+
+.navbar-right {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.link-etherscan {
+  color: var(--text-secondary);
+  font-size: 14px;
+  text-decoration: none;
+  transition: color 0.2s;
+}
+
+.link-etherscan:hover {
+  color: var(--cyan);
+}
+
+.badge {
+  font-size: 12px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--border-glass);
+  color: var(--text-secondary);
+  background: var(--bg-glass);
+}
+
+.wallet-chip {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 14px;
+  border-radius: 999px;
+  border: 1px solid var(--border-glass);
+  background: var(--bg-glass);
+  font-size: 14px;
+  font-family: 'Space Grotesk', sans-serif;
+}
+
+.dot-connected {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--green);
+  box-shadow: 0 0 8px var(--green);
+  display: inline-block;
+}
+
+/* MAIN CONTENT */
+.content {
+  flex: 1;
+  max-width: 900px;
+  width: 100%;
+  margin: 0 auto;
+  padding: 48px 24px 80px;
+  display: flex;
+  flex-direction: column;
+  gap: 40px;
+}
+
+/* HERO */
+.hero {
+  text-align: center;
+  position: relative;
+  padding-top: 20px;
+}
+
+.oracle-visual {
+  position: relative;
+  width: 120px;
+  height: 120px;
+  margin: 0 auto 24px;
+}
+
+.oracle-node {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--gradient-main);
+  transform: translate(-50%, -50%);
+  box-shadow: 0 0 20px var(--cyan);
+}
+
+.oracle-ring {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  border: 1px solid var(--cyan);
+  border-radius: 50%;
+  opacity: 0;
+  transform: translate(-50%, -50%);
+  animation: pulse-ring 3s ease-out infinite;
+}
+
+.ring-1 { width: 40px; height: 40px; animation-delay: 0s; }
+.ring-2 { width: 40px; height: 40px; animation-delay: 1s; }
+.ring-3 { width: 40px; height: 40px; animation-delay: 2s; }
+
+@keyframes pulse-ring {
+  0% { width: 20px; height: 20px; opacity: 0.6; }
+  100% { width: 120px; height: 120px; opacity: 0; }
+}
+
+.hero-title {
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 42px;
+  font-weight: 700;
+  line-height: 1.15;
+  margin: 0 0 16px;
+  letter-spacing: -0.02em;
+}
+
+.gradient-text {
+  background: var(--gradient-main);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.hero-subtitle {
+  color: var(--text-secondary);
+  font-size: 16px;
+  max-width: 480px;
+  margin: 0 auto;
+  line-height: 1.6;
+}
+
+/* STATS ROW */
+.stats-row {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+}
+
+.stat-card {
+  background: var(--bg-glass);
+  border: 1px solid var(--border-glass);
+  border-radius: 16px;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.stat-label {
+  font-size: 12px;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.stat-value {
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 24px;
+  font-weight: 600;
+}
+
+.stat-value-small {
+  font-size: 18px;
+}
+
+.stat-refresh {
+  align-self: flex-start;
+  margin-top: 6px;
+  background: none;
+  border: none;
+  color: var(--cyan);
+  font-size: 12px;
+  cursor: pointer;
+  padding: 0;
+}
+
+.stat-refresh:disabled {
+  color: var(--text-secondary);
+  cursor: default;
+}
+
+/* GLASS PANEL BASE */
+.glass {
+  background: var(--bg-glass);
+  border: 1px solid var(--border-glass);
+  border-radius: 20px;
+  backdrop-filter: blur(10px);
+}
+
+/* WALLET PANEL */
+.wallet-panel {
+  padding: 20px 24px;
+}
+
+.wallet-panel-row {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.wallet-panel-empty {
+  justify-content: space-between;
+  width: 100%;
+}
+
+.wallet-panel-empty p {
+  color: var(--text-secondary);
+  margin: 0;
+}
+
+.wallet-info {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.wallet-info-label {
+  font-size: 12px;
+  color: var(--green);
+  font-weight: 600;
+}
+
+.wallet-info-address {
+  font-size: 14px;
+  color: var(--text-secondary);
+  word-break: break-all;
+}
+
+.warning-text {
+  color: var(--amber);
+  font-size: 13px;
+  margin: 0;
+  width: 100%;
+}
+
+/* MINT CARD */
+.mint-card {
+  padding: 40px;
+  text-align: center;
+}
+
+.mint-title {
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 26px;
+  margin: 0 0 12px;
+}
+
+.mint-description {
+  color: var(--text-secondary);
+  margin: 0 0 28px;
+  font-size: 15px;
+}
+
+.status-text {
+  margin-top: 16px;
+  color: var(--text-secondary);
+  font-size: 14px;
+}
+
+/* BUTTONS */
+.btn {
+  font-family: 'Space Grotesk', sans-serif;
+  font-weight: 600;
+  border: none;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: transform 0.15s, opacity 0.15s;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.btn:hover {
+  transform: translateY(-1px);
+}
+
+.btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.btn-primary {
+  background: var(--gradient-main);
+  color: #0a0b10;
+  padding: 10px 20px;
+  font-size: 14px;
+}
+
+.btn-small {
+  padding: 8px 16px;
+  font-size: 13px;
+}
+
+.btn-mint {
+  background: var(--gradient-main);
+  color: #0a0b10;
+  padding: 16px 48px;
+  font-size: 16px;
+  box-shadow: 0 0 30px rgba(139, 92, 246, 0.3);
+}
+
+.btn-secondary {
+  background: var(--bg-glass);
+  border: 1px solid var(--border-glass);
+  color: var(--text-primary);
+  padding: 10px 18px;
+  font-size: 13px;
+}
+
+.btn-secondary:hover {
+  border-color: var(--cyan);
+}
+
+/* RESULT CARD */
+.result-card {
+  padding: 32px;
+  display: grid;
+  grid-template-columns: 220px 1fr;
+  gap: 32px;
+  align-items: center;
+}
+
+.nft-art {
+  aspect-ratio: 1;
+  border-radius: 16px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  position: relative;
+  overflow: hidden;
+  border: 1px solid var(--border-glass);
+}
+
+.market-bearish .nft-art { background: linear-gradient(160deg, rgba(239, 68, 68, 0.15), rgba(10, 11, 16, 0.4)); }
+.market-neutral .nft-art { background: linear-gradient(160deg, rgba(245, 158, 11, 0.15), rgba(10, 11, 16, 0.4)); }
+.market-bullish .nft-art { background: linear-gradient(160deg, rgba(16, 185, 129, 0.15), rgba(10, 11, 16, 0.4)); }
+
+.nft-art-label {
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  color: var(--text-secondary);
+}
+
+.nft-art-id {
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 28px;
+  font-weight: 700;
+}
+
+.nft-art-bars {
+  display: flex;
+  align-items: flex-end;
+  gap: 4px;
+  height: 40px;
+  margin-top: 8px;
+}
+
+.bar {
+  width: 8px;
+  border-radius: 2px 2px 0 0;
+}
+
+.market-bearish .bar { background: var(--red); }
+.market-neutral .bar { background: var(--amber); }
+.market-bullish .bar { background: var(--green); }
+
+.market-bearish .bar-1 { height: 34px; }
+.market-bearish .bar-2 { height: 26px; }
+.market-bearish .bar-3 { height: 20px; }
+.market-bearish .bar-4 { height: 12px; }
+.market-bearish .bar-5 { height: 6px; }
+
+.market-neutral .bar-1 { height: 16px; }
+.market-neutral .bar-2 { height: 20px; }
+.market-neutral .bar-3 { height: 16px; }
+.market-neutral .bar-4 { height: 22px; }
+.market-neutral .bar-5 { height: 16px; }
+
+.market-bullish .bar-1 { height: 6px; }
+.market-bullish .bar-2 { height: 12px; }
+.market-bullish .bar-3 { height: 20px; }
+.market-bullish .bar-4 { height: 26px; }
+.market-bullish .bar-5 { height: 34px; }
+
+.result-details {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.result-row {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.result-label {
+  font-size: 12px;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.result-market {
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 22px;
+  font-weight: 700;
+}
+
+.market-text-bearish { color: var(--red); }
+.market-text-neutral { color: var(--amber); }
+.market-text-bullish { color: var(--green); }
+
+.result-value {
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 20px;
+  font-weight: 600;
+}
+
+.result-actions {
+  display: flex;
+  gap: 12px;
+  margin-top: 8px;
+  flex-wrap: wrap;
+}
+
+/* MARKET INFO ROW */
+.market-info-row {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+}
+
+.market-info-card {
+  background: var(--bg-glass);
+  border: 1px solid var(--border-glass);
+  border-radius: 16px;
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  text-align: center;
+}
+
+.market-info-emoji {
+  font-size: 24px;
+}
+
+.market-info-title {
+  font-family: 'Space Grotesk', sans-serif;
+  font-weight: 600;
+  font-size: 15px;
+}
+
+.market-info-range {
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+/* FOOTER */
+.footer {
+  text-align: center;
+  padding: 24px;
+  border-top: 1px solid var(--border-glass);
+  color: var(--text-secondary);
+  font-size: 13px;
+}
+
+.footer a {
+  color: var(--cyan);
+  text-decoration: none;
+}
+
+/* RESPONSIVE */
+@media (max-width: 640px) {
+  .navbar {
+    padding: 14px 16px;
+  }
+  .hero-title {
+    font-size: 30px;
+  }
+  .stats-row {
+    grid-template-columns: 1fr;
+  }
+  .result-card {
+    grid-template-columns: 1fr;
+  }
+  .nft-art {
+    max-width: 220px;
+    margin: 0 auto;
+  }
+  .market-info-row {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ================= NFT GALLERY ================= */
+
+.nft-gallery {
+  margin-top: 40px;
+  width: 100%;
+}
+
+.gallery-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 20px;
+}
+
+.gallery-title {
+  margin: 0;
+  font-size: 24px;
+}
+
+.gallery-subtitle {
+  margin: 6px 0 0;
+  opacity: 0.65;
+}
+
+.gallery-count {
+  font-size: 14px;
+  opacity: 0.7;
+}
+
+.nft-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 20px;
+}
+
+.gallery-card {
+  overflow: hidden;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.gallery-image-wrapper {
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  overflow: hidden;
+}
+
+.gallery-image {
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: cover;
+}
+
+.gallery-card-content {
+  padding: 16px;
+}
+
+.gallery-card-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.gallery-card-title h3 {
+  margin: 0;
+  font-size: 17px;
+}
+
+.gallery-market {
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.gallery-info {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.gallery-info div {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.gallery-info span {
+  font-size: 11px;
+  opacity: 0.6;
+}
+
+.gallery-info strong {
+  font-size: 13px;
+}
+
+.gallery-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+.gallery-actions .btn {
+  flex: 1;
+  text-align: center;
+}
