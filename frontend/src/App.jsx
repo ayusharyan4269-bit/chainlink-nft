@@ -110,14 +110,23 @@ function resolveIpfsUrl(urlOrCid) {
 function getNftImageUrl(item) {
   const fallback = 'https://placehold.co/400x400/1e293b/a78bfa?text=NFT+Artwork+Unavailable';
   if (!item) return fallback;
-  const val = item.ipfs_image_url || item.image_cid || item.image || item.image_url;
+  const val =
+    item.ipfs_image_url ||
+    item.imageIpfsUrl ||
+    item.image_cid ||
+    item.image ||
+    item.image_url;
   const resolved = resolveIpfsUrl(val);
   return resolved || fallback;
 }
 
 function getNftMetadataUrl(item) {
   if (!item) return '#';
-  const val = item.ipfs_metadata_url || item.metadata_cid || item.metadata_url;
+  const val =
+    item.ipfs_metadata_url ||
+    item.metadataIpfsUrl ||
+    item.metadata_cid ||
+    item.metadata_url;
   return resolveIpfsUrl(val) || '#';
 }
 
@@ -1114,12 +1123,19 @@ function App() {
       setCurrentMintStep(6);
       const verifiedNft = verifyRes.data.nft || {};
 
+      const resolvedImageCid = verifiedNft.image_cid || imageCid;
+      const resolvedMetadataCid = verifiedNft.metadata_cid || metadataCid;
+
       setMintResult({
         tokenId: mintedTokenId,
         market: verifiedNft.market || marketStr,
         priceAtMint: verifiedNft.price_at_mint || verifiedNft.eth_usd_price || mintedPriceVal,
-        metadataIpfsUrl: `https://gateway.pinata.cloud/ipfs/${metadataCid}`,
-        imageIpfsUrl: `https://gateway.pinata.cloud/ipfs/${imageCid}`,
+        owner: verifiedNft.owner_wallet || verifiedNft.owner_address || walletAddress,
+        contractAddress: verifiedNft.contract_address || activeContractAddress,
+        image_cid: resolvedImageCid,
+        metadata_cid: resolvedMetadataCid,
+        imageIpfsUrl: resolveIpfsUrl(resolvedImageCid),
+        metadataIpfsUrl: resolveIpfsUrl(resolvedMetadataCid),
         txHash: receipt.hash,
       });
 
@@ -1746,94 +1762,6 @@ function App() {
             {status && <div className="status-notification-box">{status}</div>}
           </div>
         </div>
-
-        {/* On-Chain Proof Screen Modal */}
-        {mintResult && (
-          <div className="modal-backdrop" onClick={() => setMintResult(null)}>
-            <div className="modal-container glass-panel modal-narrow proof-modal-card" onClick={(e) => e.stopPropagation()}>
-              <div className="modal-head">
-                <h2>✓ NFT Minted & On-Chain Verified!</h2>
-                <button className="btn-modal-close" onClick={() => setMintResult(null)}>✕</button>
-              </div>
-
-              <div className="proof-body">
-                <div className="proof-media">
-                  <img
-                    src={getNftImageUrl(mintResult)}
-                    alt={`NFT #${mintResult.tokenId}`}
-                    onError={(e) => {
-                      e.target.onerror = null;
-                      e.target.src = 'https://placehold.co/400x400/1e293b/a78bfa?text=ChainLink+NFT';
-                    }}
-                  />
-                </div>
-
-                <div className="proof-title">ChainLink NFT #{mintResult.tokenId}</div>
-
-                <div className="proof-meta-grid">
-                  <div className="p-meta-item">
-                    <span className="p-lbl">Market Trait (Immutable):</span>
-                    <span className={`p-val badge-trait-sm ${MARKET_META[mintResult.market]?.className}`}>
-                      {MARKET_META[mintResult.market]?.emoji} {mintResult.market}
-                    </span>
-                  </div>
-
-                  <div className="p-meta-item">
-                    <span className="p-lbl">ETH/USD at Mint:</span>
-                    <span className="p-val">${Number(mintResult.priceAtMint).toLocaleString()}</span>
-                  </div>
-
-                  <div className="p-meta-item">
-                    <span className="p-lbl">Owner Wallet:</span>
-                    <span className="p-val code-text">{formatAddressWithEns(mintResult.owner || walletAddress)}</span>
-                  </div>
-
-                  <div className="p-meta-item">
-                    <span className="p-lbl">Contract Address:</span>
-                    <a href={`${ETHERSCAN_BASE}/address/${mintResult.contractAddress || activeContractAddress}`} target="_blank" rel="noreferrer" className="p-link">
-                      {shortenAddress(mintResult.contractAddress || activeContractAddress)} ↗
-                    </a>
-                  </div>
-
-                  <div className="p-meta-item">
-                    <span className="p-lbl">Transaction Hash:</span>
-                    <a href={`${ETHERSCAN_BASE}/tx/${mintResult.txHash}`} target="_blank" rel="noreferrer" className="p-link">
-                      {shortenAddress(mintResult.txHash)} ↗
-                    </a>
-                  </div>
-                </div>
-
-                <div className="proof-actions-row">
-                  <a href={`${ETHERSCAN_BASE}/tx/${mintResult.txHash}`} target="_blank" rel="noreferrer" className="btn-ipfs-action btn-ipfs-meta">
-                    🔍 View on Etherscan
-                  </a>
-                  <a href={getNftMetadataUrl(mintResult)} target="_blank" rel="noreferrer" className="btn-ipfs-action btn-ipfs-meta">
-                    📋 View Metadata
-                  </a>
-                  <a href={getNftImageUrl(mintResult)} target="_blank" rel="noreferrer" className="btn-ipfs-action btn-ipfs-img">
-                    🖼️ View Image
-                  </a>
-                  <button
-                    className="btn-ipfs-action btn-share-proof"
-                    onClick={(e) => handleShareNftProof(mintResult.tokenId, e)}
-                  >
-                    🔗 Share NFT Proof
-                  </button>
-                  <button
-                    className="btn-ipfs-action btn-ipfs-img"
-                    onClick={() => {
-                      const item = nfts.find((n) => String(n.token_id) === String(mintResult.tokenId)) || mintResult;
-                      setMintResult(null);
-                      handleOpenNftModal(item);
-                    }}
-                  >
-                    📜 View NFT Details
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
       </section>
 
       {/* --- FEATURED NFT SHOWCASE --- */}
@@ -2131,6 +2059,94 @@ function App() {
           </div>
         )}
       </section>
+
+      {/* --- ON-CHAIN PROOF MODAL (viewport-level overlay, outside mint section) --- */}
+      {mintResult && (
+        <div className="modal-backdrop proof-modal-backdrop" onClick={() => setMintResult(null)}>
+          <div className="modal-container glass-panel modal-narrow proof-modal-card" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-head">
+              <h2>✓ NFT Minted & On-Chain Verified!</h2>
+              <button className="btn-modal-close" onClick={() => setMintResult(null)}>✕</button>
+            </div>
+
+            <div className="proof-body">
+              <div className="proof-media">
+                <img
+                  src={getNftImageUrl(mintResult)}
+                  alt={`NFT #${mintResult.tokenId}`}
+                  onError={(e) => {
+                    e.target.onerror = null;
+                    e.target.src = 'https://placehold.co/400x400/1e293b/a78bfa?text=ChainLink+NFT';
+                  }}
+                />
+              </div>
+
+              <div className="proof-title">ChainLink NFT #{mintResult.tokenId}</div>
+
+              <div className="proof-meta-grid">
+                <div className="p-meta-item">
+                  <span className="p-lbl">Market Trait (Immutable):</span>
+                  <span className={`p-val badge-trait-sm ${MARKET_META[mintResult.market]?.className}`}>
+                    {MARKET_META[mintResult.market]?.emoji} {mintResult.market}
+                  </span>
+                </div>
+
+                <div className="p-meta-item">
+                  <span className="p-lbl">ETH/USD at Mint:</span>
+                  <span className="p-val">${Number(mintResult.priceAtMint).toLocaleString()}</span>
+                </div>
+
+                <div className="p-meta-item">
+                  <span className="p-lbl">Owner Wallet:</span>
+                  <span className="p-val code-text">{formatAddressWithEns(mintResult.owner || walletAddress)}</span>
+                </div>
+
+                <div className="p-meta-item">
+                  <span className="p-lbl">Contract Address:</span>
+                  <a href={`${ETHERSCAN_BASE}/address/${mintResult.contractAddress || activeContractAddress}`} target="_blank" rel="noreferrer" className="p-link">
+                    {shortenAddress(mintResult.contractAddress || activeContractAddress)} ↗
+                  </a>
+                </div>
+
+                <div className="p-meta-item">
+                  <span className="p-lbl">Transaction Hash:</span>
+                  <a href={`${ETHERSCAN_BASE}/tx/${mintResult.txHash}`} target="_blank" rel="noreferrer" className="p-link">
+                    {shortenAddress(mintResult.txHash)} ↗
+                  </a>
+                </div>
+              </div>
+
+              <div className="proof-actions-row">
+                <a href={`${ETHERSCAN_BASE}/tx/${mintResult.txHash}`} target="_blank" rel="noreferrer" className="btn-ipfs-action btn-ipfs-meta">
+                  🔍 View on Etherscan
+                </a>
+                <a href={getNftMetadataUrl(mintResult)} target="_blank" rel="noreferrer" className="btn-ipfs-action btn-ipfs-meta">
+                  📋 View Metadata
+                </a>
+                <a href={getNftImageUrl(mintResult)} target="_blank" rel="noreferrer" className="btn-ipfs-action btn-ipfs-img">
+                  🖼️ View Image
+                </a>
+                <button
+                  className="btn-ipfs-action btn-share-proof"
+                  onClick={(e) => handleShareNftProof(mintResult.tokenId, e)}
+                >
+                  🔗 Share NFT Proof
+                </button>
+                <button
+                  className="btn-ipfs-action btn-ipfs-img"
+                  onClick={() => {
+                    const item = nfts.find((n) => String(n.token_id) === String(mintResult.tokenId)) || mintResult;
+                    setMintResult(null);
+                    handleOpenNftModal(item);
+                  }}
+                >
+                  📜 View NFT Details
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* --- PREMIUM NFT DETAIL & PROVENANCE MODAL --- */}
       {selectedNftModal && (
