@@ -394,11 +394,17 @@ function App() {
       const accounts = await provider.send('eth_requestAccounts', []);
       const network = await provider.getNetwork();
 
-      setWalletAddress(accounts[0]);
-      setChainId(network.chainId);
-      setStatus('');
-      resolveEns(accounts[0]);
-      return accounts[0];
+      if (accounts && accounts.length > 0) {
+        const normalized = accounts[0].toLowerCase();
+        console.log('[MetaMask] connectWallet active account:', normalized);
+        setWalletAddress(normalized);
+        setChainId(network.chainId);
+        setStatus('');
+        resolveEns(normalized);
+        fetchNfts();
+        return normalized;
+      }
+      return null;
     } catch (err) {
       setStatus('Failed to connect wallet: ' + err.message);
       return null;
@@ -587,29 +593,56 @@ function App() {
       window.ethereum
         .request({ method: 'eth_accounts' })
         .then((accounts) => {
-          if (accounts.length > 0) {
-            setWalletAddress(accounts[0]);
-            resolveEns(accounts[0]);
+          console.log('[MetaMask] initial eth_accounts check:', accounts);
+          if (accounts && accounts.length > 0) {
+            const initialAccount = accounts[0].toLowerCase();
+            console.log('[MetaMask] initial active account:', initialAccount);
+            setWalletAddress(initialAccount);
+            resolveEns(initialAccount);
+          } else {
+            console.log('[MetaMask] no initial accounts connected');
+            setWalletAddress(null);
           }
         })
-        .catch(() => {});
+        .catch((err) => {
+          console.warn('[MetaMask] eth_accounts check error:', err);
+        });
 
       window.ethereum
         .request({ method: 'eth_chainId' })
-        .then((id) => setChainId(BigInt(id)))
-        .catch(() => {});
+        .then((id) => {
+          const cid = BigInt(id);
+          console.log('[MetaMask] initial eth_chainId check:', id, cid);
+          setChainId(cid);
+        })
+        .catch((err) => {
+          console.warn('[MetaMask] eth_chainId check error:', err);
+        });
 
       const handleAccountsChanged = (accounts) => {
-        if (accounts.length > 0) {
-          setWalletAddress(accounts[0]);
-          resolveEns(accounts[0]);
+        console.log('[MetaMask] accountsChanged event received:', accounts);
+        if (accounts && accounts.length > 0) {
+          const nextAccount = accounts[0].toLowerCase();
+          console.log('[MetaMask] active account switched to:', nextAccount);
+          setWalletAddress(nextAccount);
+          setCardBuyErrors({});
+          resolveEns(nextAccount);
+          fetchNfts();
         } else {
+          console.log('[MetaMask] wallet disconnected (accounts empty)');
           setWalletAddress(null);
+          setCardBuyErrors({});
+          fetchNfts();
         }
       };
 
       const handleChainChanged = (idHex) => {
-        setChainId(BigInt(idHex));
+        const newChainId = BigInt(idHex);
+        console.log('[MetaMask] chainChanged event received:', idHex, newChainId);
+        setChainId(newChainId);
+        setCardBuyErrors({});
+        fetchPrice();
+        fetchNfts();
       };
 
       window.ethereum.on('accountsChanged', handleAccountsChanged);
