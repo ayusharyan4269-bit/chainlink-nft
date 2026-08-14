@@ -1740,6 +1740,29 @@ html, body {
   font-weight: 700;
   cursor: pointer;
   box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+  transition: all 0.15s ease;
+}
+
+.btn-card-buy:hover {
+  background: linear-gradient(135deg, #10b981, #047857);
+  transform: translateY(-1px);
+  box-shadow: 0 6px 18px rgba(16, 185, 129, 0.45);
+}
+
+.btn-card-buy:active {
+  transform: translateY(0);
+}
+
+.card-buy-error-inline {
+  background: rgba(239, 68, 68, 0.15);
+  border: 1px solid rgba(239, 68, 68, 0.4);
+  color: #fca5a5;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 8px 12px;
+  border-radius: 10px;
+  margin-top: 8px;
+  word-break: break-word;
 }
 
 .btn-card-danger {

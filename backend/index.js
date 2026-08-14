@@ -11,26 +11,33 @@ const app = express();
 
 const PORT = process.env.PORT || 3001;
 
-const FRONTEND_ORIGIN =
-  process.env.FRONTEND_ORIGIN || 'http://localhost:5173';
+const rawFrontendOrigin = process.env.FRONTEND_ORIGIN || 'http://localhost:5173';
+const configuredOrigins = rawFrontendOrigin
+  .split(',')
+  .map((o) => o.trim().replace(/\/+$/, ''))
+  .filter(Boolean);
 
-const allowedOrigins = [
-  FRONTEND_ORIGIN,
+const defaultOrigins = [
   'http://localhost:5173',
   'http://localhost:5174',
   'http://127.0.0.1:5173',
   'http://127.0.0.1:5174',
 ];
 
+const allowedOrigins = Array.from(new Set([...configuredOrigins, ...defaultOrigins]));
+
 app.use(
   cors({
     origin: (origin, callback) => {
-      if (!origin || allowedOrigins.includes(origin)) {
+      if (!origin) return callback(null, true);
+      const normalizedOrigin = origin.replace(/\/+$/, '');
+      if (allowedOrigins.includes(normalizedOrigin)) {
         callback(null, true);
       } else {
-        callback(null, true); // Allow dev origins gracefully
+        callback(null, true); // Allow dev / preview origins gracefully
       }
     },
+    credentials: true,
   })
 );
 
@@ -42,6 +49,8 @@ app.use('/api', mintRoutes);
 app.get('/health', (req, res) => {
   res.json({
     status: 'ok',
+    service: 'chainlink-nft-backend',
+    timestamp: new Date().toISOString(),
   });
 });
 
@@ -70,6 +79,6 @@ app.use((err, req, res, next) => {
   });
 });
 
-app.listen(PORT, () => {
-  console.log(`Backend running on http://localhost:${PORT}`);
+app.listen(PORT, '0.0.0.0', () => {
+  console.log(`Backend running on port ${PORT}`);
 });

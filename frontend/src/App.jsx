@@ -13,7 +13,7 @@ import './App.css';
 
 const SEPOLIA_CHAIN_ID = 11155111n;
 const ETHERSCAN_BASE = 'https://sepolia.etherscan.io';
-const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001';
+const BACKEND_URL = (import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001').replace(/\/+$/, '');
 
 async function safeFetchJson(url, options) {
   let response;
@@ -76,11 +76,32 @@ function decodeRevertError(err) {
     return 'Transaction cancelled by user.';
   }
   const msg = err.reason || err.info?.error?.message || err.shortMessage || err.message || '';
+  if (
+    err.code === 'INSUFFICIENT_FUNDS' ||
+    msg.toLowerCase().includes('insufficient funds') ||
+    msg.toLowerCase().includes('exceeds balance') ||
+    msg.toLowerCase().includes('insufficient eth')
+  ) {
+    return 'Insufficient Sepolia ETH. You need at least 0.05 ETH + gas to buy this NFT.';
+  }
   if (msg.includes('Not the NFT owner')) return "You don't own this NFT.";
   if (msg.includes('Marketplace not approved')) return 'Marketplace approval missing or revoked.';
   if (msg.includes('Price must be greater than zero')) return 'Price must be greater than zero.';
   if (msg.includes('execution reverted')) return 'Contract execution reverted on Sepolia.';
   return msg.slice(0, 100);
+}
+
+// --- CANONICAL COMPOSITE NFT IDENTITY HELPER ---
+function getNftCompositeKey(contractAddrOrItem, tokenIdParam) {
+  if (!contractAddrOrItem) return '';
+  if (typeof contractAddrOrItem === 'object') {
+    const item = contractAddrOrItem;
+    const addr = item.contract_address || item.contractAddress || PRODUCTION_CONTRACT_ADDRESS;
+    const tid = item.token_id !== undefined ? item.token_id : item.tokenId;
+    return `${String(addr).toLowerCase()}:${String(tid)}`;
+  }
+  const addr = contractAddrOrItem || PRODUCTION_CONTRACT_ADDRESS;
+  return `${String(addr).toLowerCase()}:${String(tokenIdParam)}`;
 }
 
 // --- IPFS RESOLUTION HELPERS ---
@@ -207,6 +228,7 @@ function App() {
   const [listingStatus, setListingStatus] = useState('');
   const [listingLoading, setListingLoading] = useState(false);
   const [listingStep, setListingStep] = useState(0);
+  const [cardBuyErrors, setCardBuyErrors] = useState({});
 
   const isCorrectNetwork = chainId === SEPOLIA_CHAIN_ID;
 
@@ -232,9 +254,9 @@ function App() {
       .then((res) => res.json())
       .then((data) => {
         if (data.status === 'ok') setBackendHealth('online');
-        else setBackendHealth('configured');
+        else setBackendHealth('offline');
       })
-      .catch(() => setBackendHealth('configured'));
+      .catch(() => setBackendHealth('offline'));
   }, []);
 
   // Shareable NFT Proof Link Generator, Web Share API & Clipboard Copier
@@ -364,7 +386,7 @@ function App() {
   const connectWallet = async () => {
     if (!window.ethereum) {
       setStatus('MetaMask not detected. Please install it.');
-      return;
+      return null;
     }
 
     try {
@@ -376,8 +398,187 @@ function App() {
       setChainId(network.chainId);
       setStatus('');
       resolveEns(accounts[0]);
+      return accounts[0];
     } catch (err) {
       setStatus('Failed to connect wallet: ' + err.message);
+      return null;
+    }
+  };
+
+  const handleBuyNft = async (nftItem, listingInfo, e) => {
+    if (e) e.stopPropagation();
+    const targetNftAddr = nftItem?.contract_address || activeContractAddress;
+    const tokenId = nftItem?.token_id;
+    const compKey = getNftCompositeKey(targetNftAddr, tokenId);
+
+    setCardBuyErrors((prev) => ({ ...prev, [compKey]: null }));
+
+    console.log('--- 🛒 MARKETPLACE BUY DIAGNOSTIC & TRANSACTION START ---');
+    console.log('1. BUY CLICKED for Composite Key:', compKey);
+
+    let activeBuyer = walletAddress;
+    if (!activeBuyer) {
+      console.log('Wallet not connected, requesting eth_requestAccounts...');
+      activeBuyer = await connectWallet();
+      if (!activeBuyer) {
+        const msg = 'Please connect your wallet to purchase this NFT.';
+        setStatus(msg);
+        setCardBuyErrors((prev) => ({ ...prev, [compKey]: msg }));
+        return;
+      }
+    }
+
+    if (!isCorrectNetwork) {
+      console.log('Not on Sepolia network, triggering network switch...');
+      await switchNetworkToSepolia();
+    }
+
+    try {
+      console.log('1. NFT Contract Address:', targetNftAddr);
+      console.log('2. Token ID:', tokenId);
+      console.log('3. Frontend Listing Price (ETH):', listingInfo?.priceEth || '0');
+      console.log('10. Marketplace Contract Address:', MARKETPLACE_ADDRESS);
+      console.log('11. Connected Buyer Wallet:', activeBuyer);
+      console.log('10b. isCorrectNetwork:', isCorrectNetwork);
+
+      if (!MARKETPLACE_ADDRESS) {
+        throw new Error('Marketplace contract address is not configured.');
+      }
+
+      // Fetch Fresh Authoritative On-Chain State from Sepolia RPC
+      setStatus(`Verifying fresh on-chain listing state for NFT #${tokenId}...`);
+      const readProvider = getReadProvider();
+      const readMarketContract = new ethers.Contract(MARKETPLACE_ADDRESS, MARKETPLACE_ABI, readProvider);
+      const readNftContract = new ethers.Contract(targetNftAddr, CONTRACT_ABI, readProvider);
+
+      const onChainListing = await readMarketContract.getListing(targetNftAddr, tokenId);
+      const onChainOwner = await readNftContract.ownerOf(tokenId);
+      const onChainApproved = await readNftContract.getApproved(tokenId);
+      const onChainApprovedForAll = await readNftContract.isApprovedForAll(onChainListing.seller, MARKETPLACE_ADDRESS);
+
+      console.log('4. On-chain getListing result:', {
+        seller: onChainListing.seller,
+        priceWei: onChainListing.price.toString(),
+        priceEth: ethers.formatEther(onChainListing.price),
+        active: onChainListing.active,
+      });
+      console.log('5. On-chain listing.active:', onChainListing.active);
+      console.log('6. On-chain listing.seller:', onChainListing.seller);
+      console.log('7. On-chain nft.ownerOf(tokenId):', onChainOwner);
+      console.log('8. On-chain nft.getApproved(tokenId):', onChainApproved);
+      console.log('9. On-chain nft.isApprovedForAll(seller, marketplace):', onChainApprovedForAll);
+
+      // Pre-flight Validations against Authoritative On-Chain Data
+      if (!onChainListing.active || onChainListing.price <= 0n) {
+        const errMsg = 'Listing is no longer active on-chain.';
+        console.warn('PRE-FLIGHT FAILED:', errMsg);
+        setCardBuyErrors((prev) => ({ ...prev, [compKey]: errMsg }));
+        setStatus(`Purchase failed: ${errMsg}`);
+        return;
+      }
+
+      if (onChainOwner.toLowerCase() !== onChainListing.seller.toLowerCase()) {
+        const errMsg = `Seller (${shortenAddress(onChainListing.seller)}) no longer owns NFT #${tokenId} (current owner: ${shortenAddress(onChainOwner)}).`;
+        console.warn('PRE-FLIGHT FAILED:', errMsg);
+        setCardBuyErrors((prev) => ({ ...prev, [compKey]: errMsg }));
+        setStatus(`Purchase failed: ${errMsg}`);
+        return;
+      }
+
+      const isApproved = (onChainApproved.toLowerCase() === MARKETPLACE_ADDRESS.toLowerCase()) || onChainApprovedForAll;
+      if (!isApproved) {
+        const errMsg = 'Marketplace approval was revoked by the seller.';
+        console.warn('PRE-FLIGHT FAILED:', errMsg);
+        setCardBuyErrors((prev) => ({ ...prev, [compKey]: errMsg }));
+        setStatus(`Purchase failed: ${errMsg}`);
+        return;
+      }
+
+      if (activeBuyer.toLowerCase() === onChainListing.seller.toLowerCase()) {
+        const errMsg = 'You are the seller of this listing. Use Cancel Listing to manage your NFT.';
+        console.warn('PRE-FLIGHT FAILED:', errMsg);
+        setCardBuyErrors((prev) => ({ ...prev, [compKey]: errMsg }));
+        setStatus(`Purchase failed: ${errMsg}`);
+        return;
+      }
+
+      // Use Authoritative Fresh On-Chain Price
+      const priceWei = onChainListing.price;
+      const freshPriceEth = ethers.formatEther(priceWei);
+
+      setStatus(`Processing purchase of NFT #${tokenId} for ${freshPriceEth} ETH...`);
+
+      // Initialize Signer & Write Contract for Web3 Wallet Transaction
+      const browserProvider = getProvider();
+      const signer = await browserProvider.getSigner();
+      const signerAddr = await signer.getAddress();
+      const writeMarketContract = new ethers.Contract(MARKETPLACE_ADDRESS, MARKETPLACE_ABI, signer);
+
+      // Check buyer balance pre-flight
+      const balance = await browserProvider.getBalance(activeBuyer);
+      if (balance < priceWei) {
+        const errMsg = `Insufficient Sepolia ETH. You need at least ${freshPriceEth} ETH + gas to buy this NFT.`;
+        console.warn('PRE-FLIGHT BALANCE CHECK:', errMsg, { balance: balance.toString(), required: priceWei.toString() });
+        setCardBuyErrors((prev) => ({ ...prev, [compKey]: errMsg }));
+        setStatus(`Purchase failed: ${errMsg}`);
+        return;
+      }
+
+      // 12 & 13. Pre-flight static call to capture exact revert reason BEFORE MetaMask
+      try {
+        console.log('12. Executing buyNFT.staticCall() simulation...');
+        await writeMarketContract.buyNFT.staticCall(targetNftAddr, tokenId, { value: priceWei });
+        console.log('12b. staticCall simulation PASSED cleanly!');
+      } catch (staticErr) {
+        console.error('13. COMPLETE raw revert error logged to console:', staticErr);
+        let decodedRevert = decodeRevertError(staticErr);
+        if (
+          staticErr?.code === 'INSUFFICIENT_FUNDS' ||
+          staticErr?.message?.toLowerCase().includes('insufficient funds') ||
+          staticErr?.message?.toLowerCase().includes('exceeds balance') ||
+          staticErr?.reason?.toLowerCase().includes('insufficient eth')
+        ) {
+          decodedRevert = `Insufficient Sepolia ETH. You need at least ${freshPriceEth} ETH + gas to buy this NFT.`;
+        }
+        setCardBuyErrors((prev) => ({ ...prev, [compKey]: decodedRevert }));
+        setStatus(`Purchase failed: ${decodedRevert}`);
+        return;
+      }
+
+      // Prompt MetaMask Signing Window
+      console.log('Prompting MetaMask transaction window...');
+      const tx = await writeMarketContract.buyNFT(targetNftAddr, tokenId, { value: priceWei });
+      console.log('Transaction response received:', tx);
+      console.log('Transaction hash:', tx.hash);
+
+      setStatus(`Purchase transaction submitted (${shortenAddress(tx.hash)}). Waiting for block confirmation...`);
+      await tx.wait(1);
+
+      // Update local state upon confirmation
+      setOnChainOwners((prev) => ({
+        ...prev,
+        [compKey]: activeBuyer.toLowerCase(),
+      }));
+
+      setListings((prev) => {
+        const next = { ...prev };
+        delete next[compKey];
+        return next;
+      });
+
+      setStatus(`🎉 Purchased NFT #${tokenId} for ${freshPriceEth} ETH! Ownership transferred.`);
+      fetchNfts();
+    } catch (err) {
+      console.error('Purchase error caught in handleBuyNft:', err);
+      let userMsg = '';
+      if (err.code === 4001 || err.action === 'reject' || err.message?.includes('rejected') || err.message?.includes('user rejected')) {
+        userMsg = 'Purchase transaction cancelled by user in MetaMask.';
+      } else {
+        const decoded = decodeRevertError(err);
+        userMsg = `Purchase failed: ${decoded || err.message || 'Unknown error'}`;
+      }
+      setCardBuyErrors((prev) => ({ ...prev, [compKey]: userMsg }));
+      setStatus(userMsg);
     }
   };
 
@@ -502,35 +703,77 @@ function App() {
       if (error) {
         setStatus('Failed to load NFTs from database: ' + error.message);
       } else {
-        // Normalize Supabase DB records
-        const normalizedNfts = (data || []).map((item) => ({
-          ...item,
-          token_id: item.token_id,
-          market: item.market,
-          price_at_mint: item.price_at_mint || item.eth_usd_price || 0,
-          owner_address: item.owner_address || item.owner_wallet || '',
-          mint_tx_hash: item.mint_tx_hash || item.transaction_hash || '',
-          ipfs_image_url: getNftImageUrl(item),
-          ipfs_metadata_url: getNftMetadataUrl(item),
-        }));
+        // Normalize & set canonical composite identity `${contract_address}:${token_id}`
+        const normalizedNfts = (data || []).map((item) => {
+          const addr = item.contract_address || item.contractAddress || activeContractAddress;
+          const tid = Number(item.token_id);
+          return {
+            ...item,
+            contract_address: addr,
+            token_id: tid,
+            market: item.market,
+            price_at_mint: item.price_at_mint || item.eth_usd_price || 0,
+            owner_address: item.owner_address || item.owner_wallet || '',
+            mint_tx_hash: item.mint_tx_hash || item.transaction_hash || '',
+            ipfs_image_url: getNftImageUrl(item),
+            ipfs_metadata_url: getNftMetadataUrl(item),
+            compositeKey: getNftCompositeKey(addr, tid),
+          };
+        });
 
-        setNfts(normalizedNfts);
-
-        const provider = getReadProvider();
-        const contract = new ethers.Contract(activeContractAddress, CONTRACT_ABI, provider);
-
-        const ownersMap = {};
-        for (const nftItem of normalizedNfts) {
-          try {
-            const owner = await contract.ownerOf(nftItem.token_id);
-            ownersMap[nftItem.token_id] = owner;
-            resolveEns(owner);
-          } catch {
-            ownersMap[nftItem.token_id] = nftItem.owner_address;
-            resolveEns(nftItem.owner_address);
+        // Deduplicate NFTs by canonical composite identity
+        const deduplicatedNfts = [];
+        const seenKeys = new Set();
+        for (const item of normalizedNfts) {
+          if (!seenKeys.has(item.compositeKey)) {
+            seenKeys.add(item.compositeKey);
+            deduplicatedNfts.push(item);
           }
         }
+
+        setNfts(deduplicatedNfts);
+
+        const provider = getReadProvider();
+        const marketContract = MARKETPLACE_ADDRESS ? new ethers.Contract(MARKETPLACE_ADDRESS, MARKETPLACE_ABI, provider) : null;
+
+        const ownersMap = {};
+        const onChainListingsMap = {};
+
+        for (const nftItem of deduplicatedNfts) {
+          const compKey = nftItem.compositeKey;
+          const targetAddr = nftItem.contract_address;
+          const nftContract = new ethers.Contract(targetAddr, CONTRACT_ABI, provider);
+
+          try {
+            const owner = await nftContract.ownerOf(nftItem.token_id);
+            ownersMap[compKey] = owner.toLowerCase();
+            resolveEns(owner);
+          } catch {
+            ownersMap[compKey] = (nftItem.owner_address || nftItem.owner_wallet || '').toLowerCase();
+            resolveEns(nftItem.owner_address || nftItem.owner_wallet);
+          }
+
+          if (marketContract) {
+            try {
+              const listingData = await marketContract.getListing(targetAddr, nftItem.token_id);
+              if (listingData && listingData.active && listingData.price > 0n) {
+                onChainListingsMap[compKey] = {
+                  seller: listingData.seller.toLowerCase(),
+                  priceEth: ethers.formatEther(listingData.price),
+                  active: true,
+                  nftContract: targetAddr,
+                  tokenId: nftItem.token_id,
+                  timestamp: Date.now(),
+                };
+              }
+            } catch {
+              // unlisted token
+            }
+          }
+        }
+
         setOnChainOwners(ownersMap);
+        setListings(onChainListingsMap);
       }
     } catch (err) {
       setStatus('Failed to load NFTs: ' + err.message);
@@ -901,12 +1144,15 @@ function App() {
 
       // 4. Listing Confirmed
       setListingStep(4);
+      const compKey = getNftCompositeKey(targetNftContractAddr, tokenId);
       setListings((prev) => ({
         ...prev,
-        [tokenId]: {
-          seller: walletAddress,
+        [compKey]: {
+          seller: walletAddress.toLowerCase(),
           priceEth,
           active: true,
+          nftContract: targetNftContractAddr,
+          tokenId,
           timestamp: Date.now(),
         },
       }));
@@ -928,64 +1174,29 @@ function App() {
 
   const handleCancelListing = async (nftItem, e) => {
     if (e) e.stopPropagation();
+    const targetNftAddr = nftItem.contract_address || activeContractAddress;
+    const compKey = getNftCompositeKey(targetNftAddr, nftItem.token_id);
     try {
       if (MARKETPLACE_ADDRESS) {
         const provider = getProvider();
         const signer = await provider.getSigner();
         const marketContract = new ethers.Contract(MARKETPLACE_ADDRESS, MARKETPLACE_ABI, signer);
-        const tx = await marketContract.cancelListing(activeContractAddress, nftItem.token_id);
+        const tx = await marketContract.cancelListing(targetNftAddr, nftItem.token_id);
+        setStatus(`Submitting cancel listing transaction for NFT #${nftItem.token_id}...`);
         await tx.wait(1);
       }
 
       setListings((prev) => {
         const next = { ...prev };
-        delete next[nftItem.token_id];
+        delete next[compKey];
         return next;
       });
 
-      setStatus(`Cancelled listing for NFT #${nftItem.token_id}.`);
-    } catch (err) {
-      setStatus('Failed to cancel listing: ' + (err.reason || err.message));
-    }
-  };
-
-  const handleBuyNft = async (nftItem, listingInfo, e) => {
-    if (e) e.stopPropagation();
-    if (!walletAddress) {
-      connectWallet();
-      return;
-    }
-
-    try {
-      setStatus(`Processing purchase of NFT #${nftItem.token_id} for ${listingInfo.priceEth} ETH...`);
-
-      if (MARKETPLACE_ADDRESS) {
-        const provider = getProvider();
-        const signer = await provider.getSigner();
-        const marketContract = new ethers.Contract(MARKETPLACE_ADDRESS, MARKETPLACE_ABI, signer);
-        const tx = await marketContract.buyNFT(activeContractAddress, nftItem.token_id, {
-          value: ethers.parseEther(listingInfo.priceEth),
-        });
-        await tx.wait(1);
-      }
-
-      // Update local ownership state
-      setOnChainOwners((prev) => ({
-        ...prev,
-        [nftItem.token_id]: walletAddress,
-      }));
-
-      // Remove listing
-      setListings((prev) => {
-        const next = { ...prev };
-        delete next[nftItem.token_id];
-        return next;
-      });
-
-      setStatus(`🎉 Purchased NFT #${nftItem.token_id} for ${listingInfo.priceEth} ETH! Ownership transferred.`);
+      setStatus(`🎉 Cancelled listing for NFT #${nftItem.token_id}.`);
       fetchNfts();
     } catch (err) {
-      setStatus('Purchase failed: ' + (err.reason || err.message));
+      console.error('Cancel listing error:', err);
+      setStatus('Failed to cancel listing: ' + decodeRevertError(err));
     }
   };
 
@@ -1156,6 +1367,8 @@ function App() {
 
   // Filtered & Sorted NFTs for Gallery & Marketplace
   const filteredNfts = nfts.filter((nftItem) => {
+    const compKey = nftItem.compositeKey || getNftCompositeKey(nftItem);
+
     // Market Trait Filter
     if (marketFilter !== 'All' && nftItem.market !== marketFilter) {
       return false;
@@ -1163,12 +1376,12 @@ function App() {
 
     // Tab Filter
     if (galleryTab === 'my_nfts') {
-      const owner = (onChainOwners[nftItem.token_id] || nftItem.owner_address || nftItem.owner_wallet || '').toLowerCase();
+      const owner = (onChainOwners[compKey] || nftItem.owner_address || nftItem.owner_wallet || '').toLowerCase();
       if (!walletAddress || owner !== walletAddress.toLowerCase()) {
         return false;
       }
     } else if (galleryTab === 'marketplace') {
-      const listing = listings[nftItem.token_id];
+      const listing = listings[compKey];
       if (!listing || !listing.active) {
         return false;
       }
@@ -1178,7 +1391,7 @@ function App() {
     if (searchQuery.trim()) {
       const q = searchQuery.trim().toLowerCase();
       const tokenIdStr = String(nftItem.token_id);
-      const ownerStr = (onChainOwners[nftItem.token_id] || nftItem.owner_address || nftItem.owner_wallet || '').toLowerCase();
+      const ownerStr = (onChainOwners[compKey] || nftItem.owner_address || nftItem.owner_wallet || '').toLowerCase();
       const ensStr = (ensNames[ownerStr] || '').toLowerCase();
 
       return tokenIdStr.includes(q) || ownerStr.includes(q) || ensStr.includes(q);
@@ -1189,8 +1402,10 @@ function App() {
 
   // Sorting Logic
   filteredNfts.sort((a, b) => {
-    const listA = listings[a.token_id];
-    const listB = listings[b.token_id];
+    const keyA = a.compositeKey || getNftCompositeKey(a);
+    const keyB = b.compositeKey || getNftCompositeKey(b);
+    const listA = listings[keyA];
+    const listB = listings[keyB];
     const priceEthA = listA?.priceEth ? Number(listA.priceEth) : Number(a.price_at_mint || a.eth_usd_price || 0);
     const priceEthB = listB?.priceEth ? Number(listB.priceEth) : Number(b.price_at_mint || b.eth_usd_price || 0);
 
@@ -1218,7 +1433,8 @@ function App() {
 
   // Portfolio Statistics Calculation
   const userOwnedNfts = nfts.filter((n) => {
-    const currentOwner = (onChainOwners[n.token_id] || n.owner_address || n.owner_wallet || '').toLowerCase();
+    const compKey = n.compositeKey || getNftCompositeKey(n);
+    const currentOwner = (onChainOwners[compKey] || n.owner_address || n.owner_wallet || '').toLowerCase();
     return walletAddress && currentOwner === walletAddress.toLowerCase();
   });
 
@@ -1312,6 +1528,7 @@ function App() {
           </button>
         </div>
       )}
+
 
       {/* --- HERO SECTION --- */}
       <section className="hero-section">
@@ -1600,10 +1817,10 @@ function App() {
           </div>
 
           <div className="health-unit">
-            <span className="h-dot">{backendHealth === 'online' || backendHealth === 'configured' ? '🟢' : '🔴'}</span>
+            <span className="h-dot">{backendHealth === 'online' ? '🟢' : '🔴'}</span>
             <div className="h-text">
               <span className="h-name">Backend API</span>
-              <span className="h-state">{backendHealth === 'online' ? 'Connected' : (backendHealth === 'configured' ? 'Connected' : 'Offline')}</span>
+              <span className="h-state">{backendHealth === 'online' ? 'Connected' : 'Offline'}</span>
             </div>
           </div>
 
@@ -1854,13 +2071,15 @@ function App() {
 
           {/* Collection Stats Bar (Entire Collection) */}
           <div className="portfolio-stats-chips">
-            <span className="chip-stat" title="Entire Collection Total">Collection: {nfts.length}</span>
-            <span className="chip-stat bearish" title="Bearish NFTs">🐻 {nfts.filter((n) => n.market === 'Bearish').length}</span>
-            <span className="chip-stat neutral" title="Neutral NFTs">⚖️ {nfts.filter((n) => n.market === 'Neutral').length}</span>
-            <span className="chip-stat bullish" title="Bullish NFTs">🐂 {nfts.filter((n) => n.market === 'Bullish').length}</span>
-            {galleryTab === 'my_nfts' && (
-              <span className="chip-stat my-owned-tag">Wallet Owned: {userOwnedNfts.length}</span>
-            )}
+            <span className="chip-stat" title="Current Tab Total">
+              {galleryTab === 'gallery' && `Collection: ${filteredNfts.length}`}
+              {galleryTab === 'marketplace' && `Active Listings: ${filteredNfts.length}`}
+              {galleryTab === 'my_nfts' && `Wallet Owned: ${filteredNfts.length}`}
+              {galleryTab === 'activity' && `Events: ${activityFeed.length}`}
+            </span>
+            <span className="chip-stat bearish" title="Bearish NFTs">🐻 {filteredNfts.filter((n) => n.market === 'Bearish').length}</span>
+            <span className="chip-stat neutral" title="Neutral NFTs">⚖️ {filteredNfts.filter((n) => n.market === 'Neutral').length}</span>
+            <span className="chip-stat bullish" title="Bullish NFTs">🐂 {filteredNfts.filter((n) => n.market === 'Bullish').length}</span>
           </div>
         </div>
 
@@ -1957,14 +2176,15 @@ function App() {
         ) : (
           <div className="cards-responsive-grid">
             {filteredNfts.map((nftItem) => {
-              const currentOwner = onChainOwners[nftItem.token_id] || nftItem.owner_address || nftItem.owner_wallet;
+              const compKey = nftItem.compositeKey || getNftCompositeKey(nftItem);
+              const currentOwner = onChainOwners[compKey] || nftItem.owner_address || nftItem.owner_wallet;
               const isOwner =
                 walletAddress && currentOwner && currentOwner.toLowerCase() === walletAddress.toLowerCase();
-              const listing = listings[nftItem.token_id];
+              const listing = listings[compKey];
 
               return (
                 <div
-                  key={nftItem.token_id}
+                  key={compKey}
                   className={`nft-card-unit glass-panel card-trait-${(nftItem.market || 'bearish').toLowerCase()}`}
                   onClick={() => handleOpenNftModal(nftItem)}
                 >
@@ -2052,6 +2272,12 @@ function App() {
                         </div>
                       ) : null}
                     </div>
+
+                    {cardBuyErrors[compKey] && (
+                      <div className="card-buy-error-inline">
+                        ⚠️ {cardBuyErrors[compKey]}
+                      </div>
+                    )}
                   </div>
                 </div>
               );
